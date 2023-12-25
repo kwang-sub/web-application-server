@@ -1,12 +1,15 @@
 package webserver;
 
+import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.HttpHeaderUtils;
+import util.HttpMessage;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -21,25 +24,27 @@ public class RequestHandler extends Thread {
         log.debug("New Client Connect! Connected IP : {}, Port : {}", connection.getInetAddress(),
                 connection.getPort());
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line= bufferedReader.readLine()) != null) {
-                if (line.isBlank()) break;
-                log.debug("HTTP 헤더 " + line);
-                sb.append(line).append("\n");
-            }
-            log.debug("end sb append = {}", sb);
-            if (sb.toString().isBlank()) return;
-            // 루프가 완료된 후에 생성자 호출
-            HttpHeaderUtils httpHeaderUtils = new HttpHeaderUtils(sb.toString());
-            String url = httpHeaderUtils.getHeader(HttpHeaderUtils.URL);
+            HttpMessage httpMessage = new HttpMessage(in);
+            if (httpMessage.getHeaders().isEmpty()) return;
+            String url = httpMessage.getHeader(HttpMessage.URL);
 
             // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
             DataOutputStream dos = new DataOutputStream(out);
             byte[] body;
+            Pattern userCreatePattern = Pattern.compile("^/user/create?.*");
             if (url.equals("/index.html")) {
                 body = getHtmlFileToString("index.html").getBytes();
+            } else if (url.equals("/user/form.html")) {
+                body = getHtmlFileToString("user/form.html").getBytes();
+            } else if (userCreatePattern.matcher(url).find()) {
+                Map<String, String> requestBody = httpMessage.getBody();
+                User user = new User(
+                        requestBody.get("userId"),
+                        requestBody.get("password"),
+                        requestBody.get("name"),
+                        ""
+                );
+                body = user.toString().getBytes(StandardCharsets.UTF_8);
             } else {
                 body = "Hello Kwang".getBytes();
             }

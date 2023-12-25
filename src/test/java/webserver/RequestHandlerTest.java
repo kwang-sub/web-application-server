@@ -1,6 +1,5 @@
 package webserver;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -10,25 +9,51 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class RequestHandlerTest {
 
-    private RequestHandler requestHandler;
-    ByteArrayOutputStream byteArrayOutputStream;
-
-    @BeforeEach
-    public void init() {
-        String httpHeader = "GET /index.html HTTP/1.1\nHost: localhost:8080\nConnection: keep-alive\nAccept: */*";
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(httpHeader.getBytes());
-        byteArrayOutputStream = new ByteArrayOutputStream();
-        MockSocket mockSocket = new MockSocket(byteArrayInputStream, byteArrayOutputStream);
-        requestHandler = new RequestHandler(mockSocket);
-    }
-
     @Test
     public void indexHtmlTest() throws InterruptedException, IOException {
+        String httpHeader = "GET /index.html HTTP/1.1\nHost: localhost:8080\nConnection: keep-alive\nAccept: */*";
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(httpHeader.getBytes());
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        MockSocket mockSocket = new MockSocket(byteArrayInputStream, byteArrayOutputStream);
+        RequestHandler requestHandler = new RequestHandler(mockSocket);
+
         requestHandler.start();
         requestHandler.join();
         String response = byteArrayOutputStream.toString();
+
         String indexHtml = RequestHandler.getHtmlFileToString("index.html");
         assertThat(response).contains(indexHtml);
+    }
+
+    @Test
+    public void formHtmlTest() throws InterruptedException, IOException {
+        String httpHeader = "GET /user/form.html HTTP/1.1\nHost: localhost:8080\nConnection: keep-alive\nAccept: */*";
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(httpHeader.getBytes());
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        MockSocket mockSocket = new MockSocket(byteArrayInputStream, byteArrayOutputStream);
+        RequestHandler requestHandler = new RequestHandler(mockSocket);
+
+        requestHandler.start();
+        requestHandler.join();
+        String response = byteArrayOutputStream.toString();
+
+        String indexHtml = RequestHandler.getHtmlFileToString("user/form.html");
+        assertThat(response).contains(indexHtml);
+    }
+
+    @Test
+    public void 회원가입() throws InterruptedException {
+        String httpHeader = "POST /user/create HTTP/1.1\nHost: localhost:8080\nConnection: keep-alive\nAccept: */*\n\n userId=kwang&password=password&name=kwangsub";
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(httpHeader.getBytes());
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        MockSocket mockSocket = new MockSocket(byteArrayInputStream, byteArrayOutputStream);
+        RequestHandler requestHandler = new RequestHandler(mockSocket);
+
+        requestHandler.start();
+        requestHandler.join();
+        String response = byteArrayOutputStream.toString();
+
+        assertThat(response).contains("kwang", "password", "kwangsub");
     }
 }
 
