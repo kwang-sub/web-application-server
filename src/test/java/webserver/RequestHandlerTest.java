@@ -53,7 +53,7 @@ public class RequestHandlerTest {
         requestHandler.join();
         String response = byteArrayOutputStream.toString();
 
-        assertThat(response).contains("kwang", "password", "kwangsub");
+        assertThat(response).contains("Location: /index.html");
     }
 }
 

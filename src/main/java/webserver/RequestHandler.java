@@ -9,7 +9,6 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -27,16 +26,17 @@ public class RequestHandler extends Thread {
             HttpMessage httpMessage = new HttpMessage(in);
             if (httpMessage.getHeaders().isEmpty()) return;
             String url = httpMessage.getHeader(HttpMessage.URL);
+            log.debug("request url {}", url);
 
             // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
             DataOutputStream dos = new DataOutputStream(out);
             byte[] body;
-            Pattern userCreatePattern = Pattern.compile("^/user/create?.*");
+            String statusCode = "200";
             if (url.equals("/index.html")) {
                 body = getHtmlFileToString("index.html").getBytes();
             } else if (url.equals("/user/form.html")) {
                 body = getHtmlFileToString("user/form.html").getBytes();
-            } else if (userCreatePattern.matcher(url).find()) {
+            } else if (url.equals("/user/create")) {
                 Map<String, String> requestBody = httpMessage.getBody();
                 User user = new User(
                         requestBody.get("userId"),
@@ -44,12 +44,17 @@ public class RequestHandler extends Thread {
                         requestBody.get("name"),
                         ""
                 );
+                log.debug("create user {}", user);
                 body = user.toString().getBytes(StandardCharsets.UTF_8);
+                statusCode = "302";
+                response302Header(dos, "/index.html");
             } else {
                 body = "Hello Kwang".getBytes();
             }
-            response200Header(dos, body.length);
-            responseBody(dos, body);
+            if (statusCode.equals("200")) {
+                response200Header(dos, body.length);
+                responseBody(dos, body);
+            }
         } catch (IOException e) {
             log.error(e.getMessage());
         }
@@ -60,6 +65,16 @@ public class RequestHandler extends Thread {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, String location) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + location + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
@@ -81,11 +96,13 @@ public class RequestHandler extends Thread {
         FileReader fileInputStream = new FileReader(path);
 
         StringBuilder sb = new StringBuilder();
-        BufferedReader bufferedReader = new BufferedReader(fileInputStream);
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            sb.append(line).append("\n");
+        try (BufferedReader bufferedReader = new BufferedReader(fileInputStream)) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
         }
+
         return sb.toString();
     }
 }

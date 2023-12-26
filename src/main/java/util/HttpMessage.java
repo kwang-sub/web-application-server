@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,9 +27,11 @@ public class HttpMessage {
 
     public HttpMessage(InputStream in) throws IOException {
 
-        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+        try {
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             String requestLine = bufferedReader.readLine();
             if (requestLine == null || requestLine.isBlank()) return;
+            log.debug("HTTP Request Line {}", requestLine);
 
             String[] requestLines = requestLine.split(" ");
             headers.put(METHOD, requestLines[0]);
@@ -38,13 +41,25 @@ public class HttpMessage {
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 if (line.isBlank()) break;
-                log.debug("HTTP 헤더 " + line);
+                log.debug("HTTP 헤더 {}", line);
                 String[] strings = line.split(":");
                 headers.put(strings[0].trim(), strings[1].trim());
             }
 
             if (getHeader(HttpMessage.METHOD).contains("POST")) {
-                String body = bufferedReader.readLine();
+                String body = "";
+                String line2;
+                while ((line2 = bufferedReader.readLine()) != null) {
+                    if (line2.isBlank() || line2.isEmpty()) break;
+                    if (body.isEmpty()) {
+                        body += line2;
+                    }
+                    else {
+                        body += "&" + line2;
+                    }
+                    log.debug("HTTP 바디 {}", body);
+                }
+                log.debug("확인 {}", body);
                 this.body = HttpRequestUtils.parseQueryString(body);
             }
 
